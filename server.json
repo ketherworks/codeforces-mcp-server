@@ -1,0 +1,17 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ketherworks/codeforces",
+  "title": "Codeforces MCP Server",
+  "description": "Search Codeforces problems and inspect public problem metadata through the official Codeforces API.",
+  "repository": {
+    "url": "https://github.com/ketherworks/codeforces-mcp-server",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://codeforces-oj-mcp.lantangtang54.workers.dev/mcp"
+    }
+  ]
+}
