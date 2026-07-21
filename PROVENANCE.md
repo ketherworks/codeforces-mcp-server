@@ -3,7 +3,7 @@
 This standalone workspace is generated from:
 
 - Repository: https://github.com/ketherworks/competitive-programming-mcp
-- Commit: `7f636969f183b1fe09d2c2111a095b1b80fb8a16`
+- Commit: `a63a43780d866804c88a938849f92558f08fe403`
 - Provider source: `packages/codeforces`
 - Shared contract source: `packages/contracts`
 - Shared MCP result helpers: `packages/server-common`
