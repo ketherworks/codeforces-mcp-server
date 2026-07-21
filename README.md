@@ -1,10 +1,12 @@
 # Codeforces MCP Server
 
+[简体中文](README.zh-CN.md)
+
 Search official Codeforces problem metadata through a small MCP server.
 
-## Hosted Endpoint
+## Quick Start
 
-The public anonymous read-only endpoint is:
+Add the hosted server to your MCP configuration:
 
 ```json
 {
@@ -17,22 +19,24 @@ The public anonymous read-only endpoint is:
 }
 ```
 
-No end-user API key, cookie, or account credential is accepted.
+The endpoint accepts anonymous read requests. It does not need an API key, Cookie, or judge account.
 
-Try it with:
+Then ask:
 
 ```text
 Find five beginner Codeforces problems tagged implementation.
 ```
 
-## Tools
+## What It Can Do
 
-- `oj_capabilities`
-- `oj_health`
-- `oj_search_problems`
-- `codeforces_get_problem_metadata`
+| Tool | Purpose |
+| --- | --- |
+| `oj_capabilities` | Report the available Codeforces read operations and transport. |
+| `oj_health` | Report service health and the latest official API observation. |
+| `oj_search_problems` | Search the official problemset by title, id, rating, or tag. |
+| `codeforces_get_problem_metadata` | Fetch one problem's official metadata by native id. |
 
-## Local Stdio
+## Run Locally
 
 Requires Node.js 22 or newer.
 
@@ -57,17 +61,22 @@ MCP client configuration from a source checkout:
 }
 ```
 
-Tagged GitHub releases attach a standalone npm tarball. npm Registry and official MCP Registry
-publication are intentionally separate steps and are not claimed until their ownership checks pass.
+Tagged GitHub releases attach a standalone npm tarball.
 
-## Source
+## Availability
+
+- Hosted MCP: `https://codeforces-oj-mcp.lantangtang54.workers.dev/mcp`
+- Official MCP Registry: `io.github.ketherworks/codeforces`, described by [`server.json`](server.json)
+- Health status: see the repository homepage or call `oj_health`
+
+## Source and Safety
 
 This standalone release is generated from the reviewed
-[Competitive Programming MCP source](https://github.com/ketherworks/competitive-programming-mcp/tree/7f636969f183b1fe09d2c2111a095b1b80fb8a16/packages/codeforces).
+[Competitive Programming MCP source](https://github.com/ketherworks/competitive-programming-mcp/tree/a63a43780d866804c88a938849f92558f08fe403/packages/codeforces).
 The release package bundles the shared OJ contract implementation, so its runtime does not depend
 on unpublished workspace packages.
 
-## Policy
+## Platform Rules
 
 This project is unofficial and is not affiliated with or endorsed by Codeforces.
 
