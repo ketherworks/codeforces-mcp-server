@@ -1,0 +1,30 @@
+{
+  "name": "codeforces-mcp-server-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "clean": "tsc -b --clean",
+    "build": "tsc -b",
+    "postbuild": "node scripts/bundle-platform.mjs codeforces",
+    "test": "vitest run",
+    "check": "npm run clean && npm run build && npm test",
+    "pack:check": "npm run test:pack --workspace @ketherworks/codeforces-mcp-server",
+    "release:verify-tag": "node scripts/verify-release-tag.mjs",
+    "release:pack": "npm pack --json --pack-destination release --workspace @ketherworks/codeforces-mcp-server",
+    "deploy:dry": "npx wrangler deploy --dry-run --config packages/codeforces/wrangler.jsonc"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.3",
+    "esbuild": "0.28.1",
+    "typescript": "5.8.3",
+    "vitest": "4.1.10",
+    "wrangler": "4.110.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

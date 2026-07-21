@@ -1,0 +1,63 @@
+{
+  "name": "@ketherworks/codeforces-mcp-server",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "codeforces-mcp-server": "dist/index.js"
+  },
+  "files": [
+    "dist/index.js",
+    "dist/index.js.map",
+    "dist/index.d.ts",
+    "dist/index.d.ts.map",
+    "dist/worker.js",
+    "dist/worker.js.map",
+    "dist/worker.d.ts",
+    "dist/worker.d.ts.map",
+    "dist/coordinator.d.ts",
+    "dist/coordinator.d.ts.map",
+    "wrangler.jsonc",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -b --pretty false",
+    "prepack": "npm run build",
+    "prepublishOnly": "node scripts/check-publish-platform.mjs",
+    "start": "node dist/index.js",
+    "test": "vitest run --config vitest.config.ts test",
+    "test:pack": "node scripts/pack-smoke.mjs",
+    "deploy:cf": "npm run build && wrangler deploy",
+    "deploy:cf:dry-run": "npm run build && wrangler deploy --dry-run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "zod": "4.3.6"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT",
+  "description": "Search official Codeforces problem metadata through a small MCP server.",
+  "author": "Kether Works contributors",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ketherworks/codeforces-mcp-server.git"
+  },
+  "homepage": "https://github.com/ketherworks/codeforces-mcp-server#readme",
+  "bugs": {
+    "url": "https://github.com/ketherworks/codeforces-mcp-server/issues"
+  },
+  "mcpName": "io.github.ketherworks/codeforces",
+  "keywords": [
+    "codeforces",
+    "competitive-programming",
+    "mcp",
+    "model-context-protocol",
+    "online-judge",
+    "read-only"
+  ]
+}

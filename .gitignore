@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+release/
+.wrangler/
+.dev.vars
+*.log
+*.tsbuildinfo
