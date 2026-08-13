@@ -11,7 +11,7 @@
   "remotes": [
     {
       "type": "streamable-http",
-      "url": "https://codeforces-oj-mcp.lantangtang54.workers.dev/mcp"
+      "url": "https://codeforces-mcp.ksrnyx.top/mcp"
     }
   ]
 }

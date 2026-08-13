@@ -13,7 +13,7 @@ Add the hosted server to your MCP configuration:
   "servers": {
     "codeforces": {
       "type": "http",
-      "url": "https://codeforces-oj-mcp.lantangtang54.workers.dev/mcp"
+      "url": "https://codeforces-mcp.ksrnyx.top/mcp"
     }
   }
 }
@@ -65,7 +65,7 @@ Tagged GitHub releases attach a standalone npm tarball.
 
 ## Availability
 
-- Hosted MCP: `https://codeforces-oj-mcp.lantangtang54.workers.dev/mcp`
+- Hosted MCP: `https://codeforces-mcp.ksrnyx.top/mcp`
 - Official MCP Registry: `io.github.ketherworks/codeforces`, described by [`server.json`](../../server.json)
 - Health status: see the repository homepage or call `oj_health`
 
@@ -112,7 +112,7 @@ Search official Codeforces problem metadata from an MCP client. It is useful for
   "servers": {
     "codeforces": {
       "type": "http",
-      "url": "https://codeforces-oj-mcp.lantangtang54.workers.dev/mcp"
+      "url": "https://codeforces-mcp.ksrnyx.top/mcp"
     }
   }
 }

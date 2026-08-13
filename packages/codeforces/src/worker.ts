@@ -1,4 +1,8 @@
-import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
+import {
+  createMcpHandler,
+  isLegacyRequest,
+  WebStandardStreamableHTTPServerTransport
+} from "@modelcontextprotocol/server";
 import { abortable, BoundedAdmission, CodeforcesQueueFullError } from "./admission.js";
 import { CodeforcesApiClient } from "./client.js";
 import {
@@ -142,10 +146,25 @@ async function handleMcpRequest(
     }),
     healthReader: async ({ signal } = {}) => readCoordinatorHealth(stub, signal, upstreamTimeoutMs)
   });
-  const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-  const server = createCodeforcesMcpServer({ provider, transport: "remote_http" });
-  await server.connect(transport);
-  return withCorsHeaders(await transport.handleRequest(request, { parsedBody }), request, env);
+  if (await isLegacyRequest(request, parsedBody)) {
+    const transport = new WebStandardStreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+      enableJsonResponse: true
+    });
+    const server = createCodeforcesMcpServer({ provider, transport: "remote_http" });
+    await server.connect(transport);
+    try {
+      return withCorsHeaders(await transport.handleRequest(request, { parsedBody }), request, env);
+    } finally {
+      await server.close();
+    }
+  }
+
+  const handler = createMcpHandler(
+    () => createCodeforcesMcpServer({ provider, transport: "remote_http" }),
+    { legacy: "reject", responseMode: "json" }
+  );
+  return withCorsHeaders(await handler.fetch(request, { parsedBody }), request, env);
 }
 
 function coordinatorStub(env: CodeforcesWorkerEnv): CoordinatorStub {
