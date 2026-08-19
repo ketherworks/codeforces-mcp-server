@@ -86,6 +86,28 @@ describe("Codeforces MCP server", () => {
     await close();
   });
 
+  test("accepts compact two-character problem ids at the MCP boundary", async () => {
+    let receivedNativeId: string | undefined;
+    const { client, close } = await connectedClient({
+      getProblemMetadata: async (nativeId: string) => {
+        receivedNativeId = nativeId;
+        return undefined;
+      }
+    });
+
+    const result = await client.callTool({
+      name: "codeforces_get_problem_metadata",
+      arguments: { nativeId: "4A" }
+    });
+
+    expect(receivedNativeId).toBe("4A");
+    expect(result).toMatchObject({
+      isError: true,
+      structuredContent: { code: "resource.not_found" }
+    });
+    await close();
+  });
+
   test("injects local_stdio into stdio-hosted capabilities", async () => {
     const server = createCodeforcesMcpServer({
       provider: new CodeforcesProvider({ nowIso: () => "2026-07-10T12:00:00.000Z" }),

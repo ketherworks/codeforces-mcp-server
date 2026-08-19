@@ -27,7 +27,9 @@ describe("Codeforces normalizers", () => {
       adapterVersion: "0.1.0"
     });
 
-    expect(searchCodeforcesProblems(summaries, "4/A", 10)[0].ref.nativeId).toBe("4/A");
+    for (const query of ["4/A", "4A", "4-A"]) {
+      expect(searchCodeforcesProblems(summaries, query, 10)[0].ref.nativeId).toBe("4/A");
+    }
     expect(searchCodeforcesProblems(summaries, "water", 10)[0].title).toBe("Watermelon");
     expect(searchCodeforcesProblems(summaries, "strings", 10)[0].ref.nativeId).toBe("71/A");
   });

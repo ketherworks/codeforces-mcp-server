@@ -15,7 +15,7 @@
     "pack:check": "npm run test:pack --workspace @ketherworks/codeforces-mcp-server",
     "release:verify-tag": "node scripts/verify-release-tag.mjs",
     "release:pack": "npm pack --json --pack-destination release --workspace @ketherworks/codeforces-mcp-server",
-    "deploy:dry": "npx wrangler deploy --dry-run --config packages/codeforces/wrangler.jsonc"
+    "deploy:dry": "npm run deploy:cf:dry-run --workspace @ketherworks/codeforces-mcp-server"
   },
   "devDependencies": {
     "@types/node": "22.15.3",

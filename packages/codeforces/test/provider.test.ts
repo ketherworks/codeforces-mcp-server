@@ -3,6 +3,18 @@ import { CodeforcesProvider } from "../src/provider.js";
 import type { CodeforcesApiClient, CodeforcesProblemsetResponse } from "../src/client.js";
 
 describe("CodeforcesProvider health", () => {
+  test.each(["4/A", "4A", "4-A"])("resolves the common problem id form %s", async (nativeId) => {
+    const client = {
+      getProblemset: async () => problemsetPayload()
+    } as CodeforcesApiClient;
+    const provider = new CodeforcesProvider({ client });
+
+    await expect(provider.getProblemMetadata(nativeId)).resolves.toMatchObject({
+      ref: { nativeId: "4/A" },
+      title: "Watermelon"
+    });
+  });
+
   test("reports the capability transport supplied by the hosting entrypoint", async () => {
     const provider = new CodeforcesProvider({ nowIso: () => "2026-07-10T12:00:00.000Z" });
 

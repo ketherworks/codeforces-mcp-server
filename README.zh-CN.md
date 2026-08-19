@@ -34,7 +34,7 @@
 | `oj_capabilities` | 报告当前可用的 Codeforces 读取能力和传输方式。 |
 | `oj_health` | 报告服务状态和最近一次官方 API 读取结果。 |
 | `oj_search_problems` | 按题名、题号、难度或标签搜索官方题库。 |
-| `codeforces_get_problem_metadata` | 按平台题号读取一道题的官方元数据。 |
+| `codeforces_get_problem_metadata` | 按题号读取官方元数据，支持 `158/A`、`158A` 和 `158-A`。 |
 
 ## 本地运行
 
