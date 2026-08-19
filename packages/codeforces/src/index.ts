@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import { createCodeforcesMcpServer } from "./server.js";
 
-const server = createCodeforcesMcpServer({ transport: "local_stdio" });
-await server.connect(new StdioServerTransport());
+serveStdio(() => createCodeforcesMcpServer({ transport: "local_stdio" }));

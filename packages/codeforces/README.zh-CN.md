@@ -13,7 +13,7 @@
   "servers": {
     "codeforces": {
       "type": "http",
-      "url": "https://codeforces-oj-mcp.lantangtang54.workers.dev/mcp"
+      "url": "https://codeforces-mcp.ksrnyx.top/mcp"
     }
   }
 }
@@ -65,7 +65,7 @@ node packages/codeforces/dist/index.js
 
 ## 服务地址
 
-- 公共 MCP：`https://codeforces-oj-mcp.lantangtang54.workers.dev/mcp`
+- 公共 MCP：`https://codeforces-mcp.ksrnyx.top/mcp`
 - 官方 MCP Registry：`io.github.ketherworks/codeforces`，定义见 [`server.json`](../../server.json)
 - 健康状态：查看仓库主页，或调用 `oj_health`
 

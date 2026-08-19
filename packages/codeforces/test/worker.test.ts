@@ -1,8 +1,30 @@
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { describe, expect, test } from "vitest";
 import worker, { createCodeforcesWorker } from "../src/worker.js";
 import { CODEFORCES_MCP_TOOL_NAMES } from "../src/server.js";
 
 describe("Codeforces Cloudflare Worker", () => {
+  test("negotiates MCP 2026-07-28 over the Worker endpoint", async () => {
+    const fixtureWorker = createCodeforcesWorker();
+    const client = new Client(
+      { name: "codeforces-modern-worker-test", version: "1.0.0" },
+      { versionNegotiation: { mode: "auto" } }
+    );
+    const transport = new StreamableHTTPClientTransport(new URL("https://example.com/mcp"), {
+      fetch: (input, init) => fixtureWorker.fetch(new Request(input, init), {} as never)
+    });
+
+    await client.connect(transport);
+    try {
+      expect(client.getNegotiatedProtocolVersion()).toBe("2026-07-28");
+      expect((await client.listTools()).tools.map((tool) => tool.name).sort()).toEqual(
+        [...CODEFORCES_MCP_TOOL_NAMES].sort()
+      );
+    } finally {
+      await client.close();
+    }
+  });
+
   test("publishes a public health document without requiring a key", async () => {
     const response = await worker.fetch(new Request("https://example.com/healthz"), {} as never);
     const body = await response.json() as any;

@@ -11,8 +11,8 @@ const platformEntrypoints = {
   nowcoder: ["index"]
 };
 const externalPackages = [
-  "@modelcontextprotocol/sdk",
-  "@modelcontextprotocol/sdk/*",
+  "@modelcontextprotocol/server",
+  "@modelcontextprotocol/server/*",
   "parse5",
   "parse5/*",
   "parse5-sax-parser",

@@ -1,5 +1,4 @@
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { describe, expect, test } from "vitest";
 import { createCodeforcesMcpServer, CODEFORCES_MCP_TOOL_NAMES } from "../src/server.js";
 import { CodeforcesProvider } from "../src/provider.js";
@@ -143,9 +142,14 @@ describe("Codeforces MCP server", () => {
 
   test("propagates SDK cancellation into the provider signal", async () => {
     let observedSignal: AbortSignal | undefined;
+    let markStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
     const { client, close } = await connectedClient({
       search: async (_input: unknown, options: { signal?: AbortSignal }) => {
         observedSignal = options.signal;
+        markStarted();
         return await new Promise((_resolve, reject) => {
           options.signal?.addEventListener(
             "abort",
@@ -158,9 +162,9 @@ describe("Codeforces MCP server", () => {
     const controller = new AbortController();
     const pending = client.callTool(
       { name: "oj_search_problems", arguments: searchArguments("cancel") },
-      undefined,
       { signal: controller.signal }
     );
+    await started;
     controller.abort();
 
     await expect(pending).rejects.toThrow(/Abort/);

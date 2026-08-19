@@ -1,5 +1,5 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { ListToolsRequestSchema, type Tool } from "@modelcontextprotocol/sdk/types.js";
+import { McpServer } from "@modelcontextprotocol/server";
+import type { Tool } from "@modelcontextprotocol/server";
 import {
   ojCapabilitiesSchema,
   ojErrorSchema,
@@ -24,16 +24,11 @@ export const CODEFORCES_MCP_TOOL_NAMES = [
 const strictEmptyInputSchema = z.object({}).strict();
 const metadataInputSchema = z.object({ nativeId: z.string().trim().min(3).max(64) }).strict();
 const INVALID_TOOL_NAME = "__invalid_codeforces_tool_call__";
-const permissiveCallToolRequestSchema = z
-  .object({
-    method: z.literal("tools/call"),
-    params: z
-      .unknown()
-      .transform(normalizeCallParams)
-      .optional()
-      .default({ name: INVALID_TOOL_NAME, arguments: { __invalidCallParams: true } })
-  })
-  .passthrough();
+const permissiveCallToolParamsSchema = z
+  .unknown()
+  .transform(normalizeCallParams)
+  .optional()
+  .default({ name: INVALID_TOOL_NAME, arguments: { __invalidCallParams: true } });
 
 const tools: Tool[] = [
   tool(
@@ -79,9 +74,8 @@ export function createCodeforcesMcpServer(options: CodeforcesMcpServerOptions): 
   const provider = options.provider ?? new CodeforcesProvider();
   const server = new McpServer({ name: "codeforces-mcp-server", version: "0.1.0" });
   server.server.registerCapabilities({ tools: { listChanged: false } });
-  server.server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
-  server.server.setRequestHandler(permissiveCallToolRequestSchema, async (request, extra) => {
-    const params = request.params;
+  server.server.setRequestHandler('tools/list', async () => ({ tools }));
+  server.server.setRequestHandler("tools/call", { params: permissiveCallToolParamsSchema }, async (params, ctx) => {
     const name = readToolName(params);
     const input = readToolArguments(params);
     const requestId = requestIdFrom(input);
@@ -92,19 +86,19 @@ export function createCodeforcesMcpServer(options: CodeforcesMcpServerOptions): 
           return provider.getCapabilities(options.transport);
         case "oj_health":
           parseToolInput(strictEmptyInputSchema, input, name);
-          return provider.getHealth({ signal: extra.signal });
+          return provider.getHealth({ signal: ctx.mcpReq.signal });
         case "oj_search_problems":
-          return provider.search(parseToolInput(codeforcesSearchInputSchema, input, name), { signal: extra.signal });
+          return provider.search(parseToolInput(codeforcesSearchInputSchema, input, name), { signal: ctx.mcpReq.signal });
         case "codeforces_get_problem_metadata": {
           const { nativeId } = parseToolInput(metadataInputSchema, input, name);
-          const summary = await provider.getProblemMetadata(nativeId, { signal: extra.signal });
+          const summary = await provider.getProblemMetadata(nativeId, { signal: ctx.mcpReq.signal });
           if (!summary) throw new CodeforcesApiError("resource.not_found", `Codeforces problem ${nativeId} was not found.`);
           return summary;
         }
         default:
           throw new CodeforcesApiError("request.invalid", "tools/call must name one of the four advertised Codeforces tools.");
       }
-    }, requestId, extra.signal);
+    }, requestId, ctx.mcpReq.signal);
   });
   return server;
 }

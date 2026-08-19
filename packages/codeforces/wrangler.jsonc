@@ -2,7 +2,14 @@
   "$schema": "https://json.schemastore.org/wrangler",
   "name": "codeforces-oj-mcp",
   "main": "dist/worker.js",
-  "compatibility_date": "2026-07-10",
+  "compatibility_date": "2026-08-01",
+  "workers_dev": true,
+  "routes": [
+    {
+      "pattern": "codeforces-mcp.ksrnyx.top",
+      "custom_domain": true
+    }
+  ],
   "durable_objects": {
     "bindings": [
       {
