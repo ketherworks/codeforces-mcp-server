@@ -22,7 +22,7 @@ export const CODEFORCES_MCP_TOOL_NAMES = [
 ] as const;
 
 const strictEmptyInputSchema = z.object({}).strict();
-const metadataInputSchema = z.object({ nativeId: z.string().trim().min(3).max(64) }).strict();
+const metadataInputSchema = z.object({ nativeId: z.string().trim().min(2).max(64) }).strict();
 const INVALID_TOOL_NAME = "__invalid_codeforces_tool_call__";
 const permissiveCallToolParamsSchema = z
   .unknown()
@@ -58,7 +58,7 @@ const tools: Tool[] = [
   tool(
     "codeforces_get_problem_metadata",
     "Get Codeforces Problem Metadata",
-    "Get official metadata only. This tool does not return a problem statement or submit code.",
+    "Get official metadata by problem id such as 158/A, 158A, or 158-A. This tool does not return a problem statement or submit code.",
     metadataInputSchema,
     ojProblemSummarySchema,
     true

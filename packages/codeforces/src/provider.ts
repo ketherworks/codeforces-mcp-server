@@ -11,7 +11,7 @@ import type {
 import { ojCapabilitiesSchema, ojProviderHealthSchema, ojSearchResultSchema } from "@kaiserunix/oj-mcp-contracts";
 import { z } from "zod";
 import { CodeforcesApiClient, CodeforcesApiError, CodeforcesRequestCancelledError } from "./client.js";
-import { normalizeCodeforcesProblemset, searchCodeforcesProblems } from "./normalizers.js";
+import { normalizeCodeforcesProblemId, normalizeCodeforcesProblemset, searchCodeforcesProblems } from "./normalizers.js";
 import type { CodeforcesUpstreamHealthObservation } from "./coordinator.js";
 import { abortable, BoundedAdmission, CodeforcesQueueFullError } from "./admission.js";
 
@@ -77,7 +77,7 @@ export class CodeforcesProvider {
   }
 
   async getProblemMetadata(nativeId: string, options: CodeforcesOperationOptions = {}): Promise<OjProblemSummary | undefined> {
-    const normalized = nativeId.trim().toLocaleUpperCase();
+    const normalized = normalizeCodeforcesProblemId(nativeId).toLocaleUpperCase();
     return (await this.problemSummaries(options.signal)).find((summary) => summary.ref.nativeId.toLocaleUpperCase() === normalized);
   }
 

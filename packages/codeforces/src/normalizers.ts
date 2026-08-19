@@ -63,18 +63,25 @@ function statisticsLookupIdentity(problem: CodeforcesProblemsetResponse["result"
 
 export function searchCodeforcesProblems(summaries: OjProblemSummary[], query: string, limit: number): OjProblemSummary[] {
   const normalizedQuery = query.trim().toLocaleLowerCase();
+  const normalizedIdQuery = normalizeCodeforcesProblemId(query).toLocaleLowerCase();
   return summaries
-    .map((summary) => ({ summary, score: matchScore(summary, normalizedQuery) }))
+    .map((summary) => ({ summary, score: matchScore(summary, normalizedQuery, normalizedIdQuery) }))
     .filter((candidate) => candidate.score > 0)
     .sort((left, right) => right.score - left.score || left.summary.ref.nativeId.localeCompare(right.summary.ref.nativeId))
     .slice(0, limit)
     .map((candidate) => candidate.summary);
 }
 
-function matchScore(summary: OjProblemSummary, query: string): number {
+export function normalizeCodeforcesProblemId(value: string): string {
+  const trimmed = value.trim();
+  const contestProblem = /^(\d+)\s*(?:[/-]\s*)?([a-z][a-z0-9]*)$/i.exec(trimmed);
+  return contestProblem ? `${contestProblem[1]}/${contestProblem[2].toLocaleUpperCase()}` : trimmed;
+}
+
+function matchScore(summary: OjProblemSummary, query: string, idQuery: string): number {
   const id = summary.ref.nativeId.toLocaleLowerCase();
-  if (id === query) return 100;
-  if (id.includes(query)) return 80;
+  if (id === idQuery) return 100;
+  if (id.includes(idQuery)) return 80;
   const title = summary.title.toLocaleLowerCase();
   if (title === query) return 70;
   if (title.includes(query)) return 60;

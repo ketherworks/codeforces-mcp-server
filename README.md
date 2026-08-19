@@ -34,7 +34,7 @@ Find five beginner Codeforces problems tagged implementation.
 | `oj_capabilities` | Report the available Codeforces read operations and transport. |
 | `oj_health` | Report service health and the latest official API observation. |
 | `oj_search_problems` | Search the official problemset by title, id, rating, or tag. |
-| `codeforces_get_problem_metadata` | Fetch one problem's official metadata by native id. |
+| `codeforces_get_problem_metadata` | Fetch official metadata by id, such as `158/A`, `158A`, or `158-A`. |
 
 ## Run Locally
 
