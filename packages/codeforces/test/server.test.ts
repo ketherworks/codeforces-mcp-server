@@ -158,6 +158,8 @@ describe("Codeforces MCP server", () => {
       const { client, close } = await connectedClient(testCase.provider);
       const result = await client.callTool({ name: testCase.name, arguments: testCase.arguments });
       expect(result).toMatchObject({ isError: true, structuredContent: testCase.expected });
+      const textContent = (result.content as Array<{ type: string; text: string }>).find((item) => item.type === "text");
+      expect(JSON.parse(textContent!.text)).toEqual(result.structuredContent);
       await close();
     }
   });

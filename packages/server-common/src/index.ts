@@ -12,7 +12,7 @@ export function toToolResult(result: Record<string, unknown>): CallToolResult {
 export function toToolError(error: OjError): CallToolResult {
   return {
     isError: true,
-    content: [{ type: "text", text: error.message }],
+    content: [{ type: "text", text: JSON.stringify(error) }],
     structuredContent: error as unknown as Record<string, unknown>
   };
 }
