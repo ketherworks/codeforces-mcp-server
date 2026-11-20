@@ -1,4 +1,11 @@
 import { z } from "zod";
+import {
+  assertPositiveSafeInteger,
+  cancelResponseBody,
+  isTimeoutError,
+  readBodyTextBounded,
+  withDeadlineSignal
+} from "@kaiserunix/oj-mcp-server-common";
 import { abortable, BoundedAdmission, CodeforcesQueueFullError, throwIfAborted } from "./admission.js";
 import {
   CodeforcesApiError,
@@ -97,9 +104,9 @@ export class CodeforcesUpstreamCoordinator {
     this.maxResponseBytes = options.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES;
     this.cacheChunkCharacters = options.cacheChunkCharacters ?? DEFAULT_CACHE_CHUNK_CHARACTERS;
     this.admission = new BoundedAdmission(1, options.maxQueued ?? 32, "Codeforces Durable Object");
-    assertPositiveLimit(this.timeoutMs, "timeoutMs");
-    assertPositiveLimit(this.maxResponseBytes, "maxResponseBytes");
-    assertPositiveLimit(this.cacheChunkCharacters, "cacheChunkCharacters");
+    assertPositiveSafeInteger(this.timeoutMs, "timeoutMs");
+    assertPositiveSafeInteger(this.maxResponseBytes, "maxResponseBytes");
+    assertPositiveSafeInteger(this.cacheChunkCharacters, "cacheChunkCharacters");
     if (this.cacheChunkCharacters > DEFAULT_CACHE_CHUNK_CHARACTERS) {
       throw new RangeError(`cacheChunkCharacters must not exceed ${DEFAULT_CACHE_CHUNK_CHARACTERS}.`);
     }
@@ -130,54 +137,62 @@ export class CodeforcesUpstreamCoordinator {
     await this.storage.put(LAST_STARTED_AT_KEY, this.now());
 
     const startedAt = this.now();
-    const timeoutSignal = AbortSignal.timeout(this.timeoutMs);
-    const upstreamSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
-    let response: Response;
-    try {
-      response = await this.fetchImpl("https://codeforces.com/api/problemset.problems", {
-        headers: { Accept: "application/json", "User-Agent": "oj-mcp-codeforces/0.1.0" },
-        redirect: "manual",
-        signal: upstreamSignal
-      });
-    } catch (error) {
-      if (signal?.aborted) throw signal.reason ?? new DOMException("Aborted", "AbortError");
-      const code: CodeforcesUpstreamHealthObservation["code"] =
-        timeoutSignal.aborted || isTimeoutError(error) ? "network.timeout" : "upstream.unavailable";
-      const mapped = new CodeforcesApiError(code, error instanceof Error ? error.message : String(error));
-      await this.recordHealth(code, startedAt, mapped.retryAfterMs);
-      throw mapped;
-    }
+    return withDeadlineSignal(
+      this.timeoutMs,
+      signal,
+      async ({ signal: upstreamSignal, didTimeout }) => {
+        let response: Response;
+        try {
+          response = await this.fetchImpl("https://codeforces.com/api/problemset.problems", {
+            headers: { Accept: "application/json", "User-Agent": "oj-mcp-codeforces/0.1.0" },
+            redirect: "manual",
+            signal: upstreamSignal
+          });
+        } catch (error) {
+          if (signal?.aborted) throw signal.reason ?? new DOMException("Aborted", "AbortError");
+          const code: CodeforcesUpstreamHealthObservation["code"] =
+            didTimeout() || isTimeoutError(error) ? "network.timeout" : "upstream.unavailable";
+          const mapped = new CodeforcesApiError(code, error instanceof Error ? error.message : String(error));
+          await this.recordHealth(code, startedAt, mapped.retryAfterMs);
+          throw mapped;
+        }
 
-    if (response.status === 429) {
-      const retryAfterMs = retryAfterMilliseconds(response);
-      const returned = bodylessResponse(response);
-      cancelResponseBody(response);
-      await this.recordHealth("rate_limited", startedAt, retryAfterMs);
-      return returned;
-    }
-    if (!response.ok) {
-      const returned = bodylessResponse(response);
-      cancelResponseBody(response);
-      await this.recordHealth(response.status === 504 ? "network.timeout" : "upstream.unavailable", startedAt);
-      return returned;
-    }
+        if (response.status === 429) {
+          const retryAfterMs = retryAfterMilliseconds(response);
+          const returned = bodylessResponse(response);
+          cancelResponseBody(response);
+          await this.recordHealth("rate_limited", startedAt, retryAfterMs);
+          return returned;
+        }
+        if (!response.ok) {
+          const returned = bodylessResponse(response);
+          cancelResponseBody(response);
+          await this.recordHealth(response.status === 504 ? "network.timeout" : "upstream.unavailable", startedAt);
+          return returned;
+        }
 
-    let captured: CapturedResponse;
-    try {
-      captured = await captureResponse(response, this.maxResponseBytes, upstreamSignal);
-    } catch (error) {
-      if (signal?.aborted) throw signal.reason ?? new DOMException("Aborted", "AbortError");
-      const code = timeoutSignal.aborted || isTimeoutError(error) ? "network.timeout" : "upstream.schema_changed";
-      await this.recordHealth(code, startedAt);
-      throw new CodeforcesApiError(code, "Codeforces response could not be captured within audited bounds.");
-    }
+        let captured: CapturedResponse;
+        try {
+          captured = await captureResponse(response, this.maxResponseBytes, upstreamSignal);
+        } catch (error) {
+          if (signal?.aborted) throw signal.reason ?? new DOMException("Aborted", "AbortError");
+          const code = didTimeout() || isTimeoutError(error) ? "network.timeout" : "upstream.schema_changed";
+          await this.recordHealth(code, startedAt);
+          throw new CodeforcesApiError(code, "Codeforces response could not be captured within audited bounds.");
+        }
 
-    const classification = classifyProblemsetBody(captured.body);
-    await this.recordHealth(classification.code, startedAt, classification.retryAfterMs);
-    if (!classification.code && this.cacheTtlMs > 0) {
-      await this.publishCache(captured);
-    }
-    return restoreResponse(captured, captured.body);
+        const classification = classifyProblemsetBody(captured.body);
+        await this.recordHealth(classification.code, startedAt, classification.retryAfterMs);
+        if (!classification.code && this.cacheTtlMs > 0) {
+          await this.publishCache(captured);
+        }
+        return restoreResponse(captured, captured.body);
+      },
+      {
+        timeoutMessage: "Codeforces coordinator upstream request timed out.",
+        cancelMessage: "Codeforces coordinator request was cancelled."
+      }
+    );
   }
 
   private async publishCache(captured: CapturedResponse): Promise<void> {
@@ -313,39 +328,12 @@ async function captureResponse(response: Response, maxBytes: number, signal: Abo
     status: response.status,
     statusText: response.statusText,
     headers,
-    body: await readResponseTextBounded(response, maxBytes, signal)
+    body: await readBodyTextBounded(response, {
+      maxBytes,
+      signal,
+      sizeLimitMessage: "Codeforces response exceeded the coordinator byte limit."
+    })
   };
-}
-
-async function readResponseTextBounded(response: Response, maxBytes: number, signal: AbortSignal): Promise<string> {
-  const reader = response.body?.getReader();
-  if (!reader) return "";
-  const decoder = new TextDecoder();
-  let bytes = 0;
-  let text = "";
-  const onAbort = () => cancelReader(reader);
-  signal.addEventListener("abort", onAbort, { once: true });
-  try {
-    while (true) {
-      throwIfAborted(signal);
-      const chunk = await reader.read();
-      throwIfAborted(signal);
-      if (chunk.done) break;
-      bytes += chunk.value.byteLength;
-      if (bytes > maxBytes) {
-        cancelReader(reader);
-        throw new RangeError("Codeforces response exceeded the coordinator byte limit.");
-      }
-      text += decoder.decode(chunk.value, { stream: true });
-    }
-    return text + decoder.decode();
-  } catch (error) {
-    cancelReader(reader);
-    throw error;
-  } finally {
-    signal.removeEventListener("abort", onAbort);
-    reader.releaseLock();
-  }
 }
 
 function chunkString(body: string, size: number): string[] {
@@ -377,44 +365,9 @@ function retryAfterMilliseconds(response: Response): number | undefined {
   return Number.isFinite(seconds) && seconds >= 0 ? seconds * 1_000 : undefined;
 }
 
-function isTimeoutError(error: unknown): boolean {
-  if (!error || typeof error !== "object") return false;
-  const candidate = error as { name?: unknown; code?: unknown; cause?: { code?: unknown } };
-  return (
-    candidate.name === "TimeoutError" ||
-    candidate.code === "ETIMEDOUT" ||
-    candidate.code === "UND_ERR_CONNECT_TIMEOUT" ||
-    candidate.cause?.code === "ETIMEDOUT" ||
-    candidate.cause?.code === "UND_ERR_CONNECT_TIMEOUT"
-  );
-}
-
-function cancelResponseBody(response: Response): void {
-  if (!response.body || response.body.locked) return;
-  cancelBestEffort(() => response.body!.cancel());
-}
-
-function cancelReader(reader: ReadableStreamDefaultReader<Uint8Array>): void {
-  cancelBestEffort(() => reader.cancel());
-}
-
-function cancelBestEffort(cancel: () => Promise<void>): void {
-  try {
-    void cancel().catch(() => {
-      // Cleanup must not replace the upstream classification.
-    });
-  } catch {
-    // Cleanup must not replace the upstream classification.
-  }
-}
-
 function jsonResponse(body: unknown, status = 200, extraHeaders?: Record<string, string>): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "Content-Type": "application/json; charset=utf-8", ...extraHeaders }
   });
-}
-
-function assertPositiveLimit(value: number, name: string): void {
-  if (!Number.isSafeInteger(value) || value <= 0) throw new RangeError(`${name} must be a positive safe integer.`);
 }
