@@ -1,3 +1,13 @@
+import {
+  abortable,
+  abortError,
+  assertNonNegativeSafeInteger,
+  assertPositiveSafeInteger,
+  throwIfAborted
+} from "@kaiserunix/oj-mcp-server-common";
+
+export { abortable, throwIfAborted };
+
 export class CodeforcesQueueFullError extends Error {
   constructor(message: string) {
     super(message);
@@ -21,8 +31,8 @@ export class BoundedAdmission {
     private readonly maxQueued: number,
     private readonly queueName: string
   ) {
-    assertPositiveInteger(limit, "concurrency limit");
-    assertNonNegativeInteger(maxQueued, "queue limit");
+    assertPositiveSafeInteger(limit, "concurrency limit");
+    assertNonNegativeSafeInteger(maxQueued, "queue limit");
   }
 
   async run<T>(signal: AbortSignal | undefined, operation: () => Promise<T>): Promise<T> {
@@ -50,7 +60,7 @@ export class BoundedAdmission {
         waiter.onAbort = () => {
           const index = this.waiters.indexOf(waiter);
           if (index >= 0) this.waiters.splice(index, 1);
-          reject(abortReason(signal));
+          reject(abortError(signal));
         };
         signal.addEventListener("abort", waiter.onAbort, { once: true });
       }
@@ -67,30 +77,4 @@ export class BoundedAdmission {
     }
     this.active -= 1;
   }
-}
-
-export function abortable<T>(operation: Promise<T>, signal?: AbortSignal): Promise<T> {
-  if (!signal) return operation;
-  throwIfAborted(signal);
-  return new Promise<T>((resolve, reject) => {
-    const onAbort = () => reject(abortReason(signal));
-    signal.addEventListener("abort", onAbort, { once: true });
-    operation.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
-  });
-}
-
-export function throwIfAborted(signal?: AbortSignal): void {
-  if (signal?.aborted) throw abortReason(signal);
-}
-
-function abortReason(signal: AbortSignal): unknown {
-  return signal.reason ?? new DOMException("The operation was aborted.", "AbortError");
-}
-
-function assertPositiveInteger(value: number, name: string): void {
-  if (!Number.isSafeInteger(value) || value <= 0) throw new RangeError(`${name} must be a positive safe integer.`);
-}
-
-function assertNonNegativeInteger(value: number, name: string): void {
-  if (!Number.isSafeInteger(value) || value < 0) throw new RangeError(`${name} must be a nonnegative safe integer.`);
 }

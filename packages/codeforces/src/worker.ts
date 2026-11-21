@@ -3,6 +3,12 @@ import {
   isLegacyRequest,
   WebStandardStreamableHTTPServerTransport
 } from "@modelcontextprotocol/server";
+import {
+  cancelBestEffort,
+  cancelReader,
+  cancelResponseBody,
+  withDeadlineSignal
+} from "@kaiserunix/oj-mcp-server-common";
 import { abortable, BoundedAdmission, CodeforcesQueueFullError } from "./admission.js";
 import { CodeforcesApiClient } from "./client.js";
 import {
@@ -184,15 +190,27 @@ async function readCoordinatorHealth(
   signal: AbortSignal | undefined,
   timeoutMs: number
 ): Promise<CodeforcesUpstreamHealthObservation | undefined> {
-  const timeoutSignal = AbortSignal.timeout(timeoutMs);
-  const combined = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
-  const response = await stub.fetch(new Request("https://coordinator/health", { signal: combined }));
-  if (!response.ok) {
-    cancelResponseBody(response);
-    return undefined;
-  }
-  const parsed = codeforcesUpstreamHealthObservationSchema.nullable().safeParse(await response.json());
-  return parsed.success ? parsed.data ?? undefined : undefined;
+  return withDeadlineSignal(
+    timeoutMs,
+    signal,
+    async ({ signal: combined }) => {
+      const response = await abortable(
+        stub.fetch(new Request("https://coordinator/health", { signal: combined })),
+        combined
+      );
+      if (!response.ok) {
+        cancelResponseBody(response);
+        return undefined;
+      }
+      const payload = await abortable(response.json(), combined);
+      const parsed = codeforcesUpstreamHealthObservationSchema.nullable().safeParse(payload);
+      return parsed.success ? parsed.data ?? undefined : undefined;
+    },
+    {
+      timeoutMessage: "Codeforces coordinator health read timed out.",
+      cancelMessage: "Codeforces coordinator health read was cancelled."
+    }
+  );
 }
 
 class InboundRequestError extends Error {
@@ -302,25 +320,6 @@ function respondBeforeBodyRead(request: Request, response: Response): Response {
 function cancelRequestBody(request: Request): void {
   if (!request.body || request.body.locked) return;
   cancelBestEffort(() => request.body!.cancel());
-}
-
-function cancelReader(reader: ReadableStreamDefaultReader<Uint8Array>): void {
-  cancelBestEffort(() => reader.cancel());
-}
-
-function cancelBestEffort(cancel: () => Promise<void>): void {
-  try {
-    void cancel().catch(() => {
-      // Cleanup must not replace the intended ingress response.
-    });
-  } catch {
-    // Cleanup must not replace the intended ingress response.
-  }
-}
-
-function cancelResponseBody(response: Response): void {
-  if (!response.body || response.body.locked) return;
-  cancelBestEffort(() => response.body!.cancel());
 }
 
 function jsonResponse(body: unknown, status = 200, extraHeaders?: Record<string, string>): Response {

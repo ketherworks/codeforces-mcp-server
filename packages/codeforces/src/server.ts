@@ -9,10 +9,19 @@ import {
   type OjCapability,
   type OjError
 } from "@kaiserunix/oj-mcp-contracts";
-import { toOjToolOutputSchema, toToolError, toToolResult } from "@kaiserunix/oj-mcp-server-common";
+import {
+  formatSchemaValidationError,
+  toOjToolOutputSchema,
+  toToolError,
+  toToolResult
+} from "@kaiserunix/oj-mcp-server-common";
 import { z } from "zod";
 import { CodeforcesApiError, CodeforcesRequestCancelledError } from "./client.js";
-import { CodeforcesProvider, codeforcesSearchInputSchema } from "./provider.js";
+import {
+  CODEFORCES_SEARCH_VALIDATION_HINT,
+  CodeforcesProvider,
+  codeforcesSearchInputSchema
+} from "./provider.js";
 
 export const CODEFORCES_MCP_TOOL_NAMES = [
   "oj_capabilities",
@@ -50,7 +59,7 @@ const tools: Tool[] = [
   tool(
     "oj_search_problems",
     "Search Codeforces Problems",
-    "Search official Codeforces problem metadata by id, title, or tag.",
+    "Search official Codeforces problem metadata by id, title, rating, or tag.",
     codeforcesSearchInputSchema,
     ojSearchResultSchema,
     true
@@ -96,7 +105,10 @@ export function createCodeforcesMcpServer(options: CodeforcesMcpServerOptions): 
           return summary;
         }
         default:
-          throw new CodeforcesApiError("request.invalid", "tools/call must name one of the four advertised Codeforces tools.");
+          throw new CodeforcesApiError(
+            "request.invalid",
+            `Unknown Codeforces tool. Call one of: ${CODEFORCES_MCP_TOOL_NAMES.join(", ")}.`
+          );
       }
     }, requestId, ctx.mcpReq.signal);
   });
@@ -145,10 +157,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function parseToolInput<T>(schema: z.ZodType<T>, input: unknown, toolName: string): T {
+const TOOL_VALIDATION_HINTS: Record<(typeof CODEFORCES_MCP_TOOL_NAMES)[number], string> = {
+  oj_capabilities: "This tool takes an empty object {}.",
+  oj_health: "This tool takes an empty object {}.",
+  oj_search_problems: CODEFORCES_SEARCH_VALIDATION_HINT,
+  codeforces_get_problem_metadata: 'Expected { nativeId } such as "158/A", "158A", or "158-A".'
+};
+
+function parseToolInput<T>(schema: z.ZodType<T>, input: unknown, toolName: (typeof CODEFORCES_MCP_TOOL_NAMES)[number]): T {
   const parsed = schema.safeParse(input);
   if (!parsed.success) {
-    throw new CodeforcesApiError("request.invalid", `${toolName} input did not match its strict bounded schema.`);
+    throw new CodeforcesApiError(
+      "request.invalid",
+      formatSchemaValidationError(toolName, parsed.error, { hint: TOOL_VALIDATION_HINTS[toolName] })
+    );
   }
   return parsed.data;
 }

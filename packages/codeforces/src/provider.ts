@@ -9,11 +9,15 @@ import type {
   OjSourceRef
 } from "@kaiserunix/oj-mcp-contracts";
 import { ojCapabilitiesSchema, ojProviderHealthSchema, ojSearchResultSchema } from "@kaiserunix/oj-mcp-contracts";
+import { formatSchemaValidationError } from "@kaiserunix/oj-mcp-server-common";
 import { z } from "zod";
 import { CodeforcesApiClient, CodeforcesApiError, CodeforcesRequestCancelledError } from "./client.js";
 import { normalizeCodeforcesProblemId, normalizeCodeforcesProblemset, searchCodeforcesProblems } from "./normalizers.js";
 import type { CodeforcesUpstreamHealthObservation } from "./coordinator.js";
 import { abortable, BoundedAdmission, CodeforcesQueueFullError } from "./admission.js";
+
+export const CODEFORCES_SEARCH_VALIDATION_HINT =
+  'Expected { schemaVersion: "oj.search-request/v1", requestId, platform: "codeforces", query, limit (1-50) }; cursor and locale are not supported on Codeforces.';
 
 export interface CodeforcesProviderOptions {
   client?: CodeforcesApiClient;
@@ -65,7 +69,12 @@ export class CodeforcesProvider {
 
   async search(input: OjSearchRequest, options: CodeforcesOperationOptions = {}): Promise<OjSearchResult> {
     const parsed = codeforcesSearchInputSchema.safeParse(input);
-    if (!parsed.success) throw new CodeforcesApiError("request.invalid", "Codeforces search input did not match its strict schema.");
+    if (!parsed.success) {
+      throw new CodeforcesApiError(
+        "request.invalid",
+        formatSchemaValidationError("oj_search_problems", parsed.error, { hint: CODEFORCES_SEARCH_VALIDATION_HINT })
+      );
+    }
     const request = parsed.data;
     const summaries = await this.problemSummaries(options.signal);
     return ojSearchResultSchema.parse({
